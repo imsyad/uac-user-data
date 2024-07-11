@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 import org.modelmapper.ModelMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,17 +28,21 @@ public class NoteController {
   private final ModelMapper mdlMap;
 
   @GetMapping
-  public ResponseEntity<?> getNotes() {
+  public ResponseEntity<?> getNotes(Authentication auth) {
+    String username = auth.getName();
     return ResponseEntity
         .ok(repo.findAll()
             .stream()
+            .filter(f-> f.getUsername().equalsIgnoreCase(username))
             .map(o -> mdlMap.map(o, NoteDto.class))
             .collect(Collectors.toSet()));
   }
 
   @PostMapping
-  public ResponseEntity<?> saveNote(@RequestBody NoteDto body) {
+  public ResponseEntity<?> saveNote(@RequestBody NoteDto body, Authentication auth) {
+    String username = auth.getName();
     var newNote = mdlMap.map(body, Note.class);
+    newNote.setUsername(username);
     newNote = repo.save(newNote);
     return ResponseEntity.status(HttpStatus.CREATED).body(newNote);
   }

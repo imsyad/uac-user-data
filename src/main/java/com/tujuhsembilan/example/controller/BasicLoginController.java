@@ -1,12 +1,15 @@
 package com.tujuhsembilan.example.controller;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
@@ -48,13 +51,18 @@ public class BasicLoginController {
   // You MUST login using BASIC AUTH, NOT POST BODY
   @PostMapping("/login")
   public ResponseEntity<?> login(@NotNull Authentication auth) {
+    Instant currentTime = Instant.now();
+    User user = (User) auth.getPrincipal();
+    List<String> authorities = user.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList());
     var jwt = jwtEncoder
         .encode(JwtEncoderParameters.from(JwsHeader.with(SignatureAlgorithm.ES512).build(),
             JwtClaimsSet.builder()
                 .issuer(authProp.getUuid())
                 .audience(List.of(authProp.getUuid()))
                 .subject(((User) auth.getPrincipal()).getUsername())
-                // You SHOULD set expiration, claims, etc here too
+                .claim("scp", authorities)
+                .issuedAt(currentTime)
+                .expiresAt(currentTime.plusSeconds(300))
                 .build()));
     return ResponseEntity.ok(jwt.getTokenValue());
   }
